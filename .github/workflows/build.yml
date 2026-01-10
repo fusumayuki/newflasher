@@ -16,7 +16,7 @@ jobs:
       - name: Install MinGW
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64 mingw-w64-tools
+          sudo apt-get install -y mingw-w64 mingw-w64-tools wget
       
       - name: Build Windows executable
         run: |
@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc make
+          sudo apt-get install -y gcc make wget
       
       - name: Build Linux x64 (static)
         run: |
@@ -56,7 +56,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib make
+          sudo apt-get install -y gcc-multilib make wget
       
       - name: Build Linux i386 (static)
         run: |
@@ -75,11 +75,19 @@ jobs:
       
       - name: Install dependencies
         run: |
-          brew install libusb
+          brew install libusb pkg-config
+      
+      - name: Fix libusb include path
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix libusb)/lib/pkgconfig:$PKG_CONFIG_PATH"
+          LIBUSB_CFLAGS=$(pkg-config --cflags libusb-1.0)
+          LIBUSB_LIBS=$(pkg-config --libs libusb-1.0)
+          echo "LIBUSB_CFLAGS=$LIBUSB_CFLAGS" >> $GITHUB_ENV
+          echo "LIBUSB_LIBS=$LIBUSB_LIBS" >> $GITHUB_ENV
       
       - name: Build macOS (native)
         run: |
-          make newflasher
+          gcc -Wall -g -O2 $LIBUSB_CFLAGS newflasher.c -o newflasher -lz -lexpat $LIBUSB_LIBS
           mv newflasher newflasher-macos
       
       - name: Upload macOS artifact
