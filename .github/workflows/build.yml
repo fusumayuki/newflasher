@@ -1,0 +1,120 @@
+name: Build Newflasher
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install MinGW
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 mingw-w64-tools
+      
+      - name: Build Windows executable
+        run: |
+          make newflasher.exe
+      
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: newflasher-windows
+          path: newflasher.exe
+
+  build-linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc make
+      
+      - name: Build Linux x64 (static)
+        run: |
+          make newflasher.x64
+      
+      - name: Upload Linux x64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: newflasher-linux-x64
+          path: newflasher.x64
+
+  build-linux-i386:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib make
+      
+      - name: Build Linux i386 (static)
+        run: |
+          make newflasher.i386
+      
+      - name: Upload Linux i386 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: newflasher-linux-i386
+          path: newflasher.i386
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          brew install libusb
+      
+      - name: Build macOS (native)
+        run: |
+          make newflasher
+          mv newflasher newflasher-macos
+      
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: newflasher-macos
+          path: newflasher-macos
+
+  release:
+    needs: [build-windows, build-linux-x64, build-linux-i386, build-macos]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+      
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(sed 's/^.*VERSION //' version.h | tr -d '"')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            newflasher-windows/newflasher.exe
+            newflasher-linux-x64/newflasher.x64
+            newflasher-linux-i386/newflasher.i386
+            newflasher-macos/newflasher-macos
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
