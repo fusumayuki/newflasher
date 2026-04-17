@@ -168,7 +168,7 @@
 #define LOG(...)
 #endif
 
-#define BUFF_MAX 0x800000
+#define BUFF_MAX 0x1000000
 #define MAX_UNIT_LINE_LEN 0x80000
 
 static char tmp[4096];
@@ -1118,6 +1118,12 @@ static bool get_reply(HANDLE dev, int ep, char *bytes, unsigned long size, int t
 	if (!ret_len)
 	{
 		//printf(" - reply: null!\n");
+		return false;
+	}
+
+	if (ret_len > BUFF_MAX)
+	{
+		printf("Bug!!! ret_len: 0x%x > BUFF_MAX: 0x%x\n", ret_len, BUFF_MAX);
 		return false;
 	}
 
